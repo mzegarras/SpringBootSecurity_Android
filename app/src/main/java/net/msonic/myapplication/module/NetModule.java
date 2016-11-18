@@ -78,7 +78,8 @@ public class NetModule {
         return client;
     }
 
-    @Provides  // Dagger will only look for methods annotated with @Provides
+    // Dagger will only look for methods annotated with @Provides
+    @Provides
     @Singleton
     ObjectMapper provideMapper() {
         ObjectMapper mapper = new ObjectMapper();

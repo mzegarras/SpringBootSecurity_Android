@@ -1,7 +1,5 @@
 package net.msonic.myapplication.module;
 
-import com.squareup.otto.Bus;
-
 import net.msonic.myapplication.scopes.UserScope;
 import net.msonic.myapplication.ws.LogonManager;
 
@@ -20,12 +18,11 @@ public class LogonModule {
 
     @Provides
     @UserScope
-    public LogonManager provideLogonManager(Retrofit retrofit, Bus bus) {
+    public LogonManager provideLogonManager(Retrofit retrofit) {
 
 
         LogonManager logonManager = new LogonManager();
         logonManager.setRetrofit(retrofit);
-        logonManager.setBus(bus);
 
         return logonManager;
     }

@@ -13,22 +13,44 @@ import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.TextView;
 
-import com.squareup.otto.Bus;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import net.msonic.myapplication.ws.LogonManager;
+import net.msonic.myapplication.ws.WeatherData;
+import net.msonic.myapplication.ws.WeatherService;
+
+import java.util.concurrent.TimeUnit;
 
 import javax.inject.Inject;
 
+import okhttp3.OkHttpClient;
+import okhttp3.logging.HttpLoggingInterceptor;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
+import retrofit2.Retrofit;
+import retrofit2.adapter.rxjava.HttpException;
+import retrofit2.adapter.rxjava.RxJavaCallAdapterFactory;
+import retrofit2.converter.jackson.JacksonConverterFactory;
+import rx.Observable;
+import rx.Subscriber;
+import rx.android.schedulers.AndroidSchedulers;
+import rx.schedulers.Schedulers;
+import rx.subscriptions.CompositeSubscription;
 
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener, Callback<LogonReponse> {
+
+
+    private CompositeSubscription compositeSubs = new CompositeSubscription();
+
 
 
     /*@Inject
@@ -37,8 +59,7 @@ public class MainActivity extends AppCompatActivity
     @Inject
     OAuth oauth;
 
-    @Inject
-    Bus bus;
+
 
     @Inject
     LogonManager logonManager;
@@ -106,18 +127,28 @@ public class MainActivity extends AppCompatActivity
 
         ((CustomApplication) getApplication()).getGitHubComponent().inject(this);
 
+
+
+
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        bus.register(this);
+        fetchData();
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        bus.unregister(this);
+
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        compositeSubs.unsubscribe();
+
     }
 
     @Override
@@ -209,6 +240,12 @@ public class MainActivity extends AppCompatActivity
     private void doLogon(){
 
 
+        //logonManager.logon("manu","123456");
+
+
+
+
+
 
        /* Interceptor interceptorHeader = new Interceptor() {
             @Override
@@ -246,12 +283,90 @@ public class MainActivity extends AppCompatActivity
 
         OAuth service = retrofit.create(OAuth.class);*/
 
-        logonManager.logon("manu","123456");
+
 
         //Call<LogonReponse> call = oauth.logon("password","manu","123456");
 
         //asynchronous call
         //call.enqueue(MainActivity.this);
+
+
+
+        fetchData();
+
+
+
+    }
+
+    private class WeatherDataSubscriber extends Subscriber<WeatherData>{
+
+
+        @Override
+        public void onCompleted() {
+            // mLoginView.whenLoginSucess();
+        }
+
+        @Override
+        public void onError(Throwable e) {
+            if (e instanceof HttpException) {
+
+            }
+
+            e.printStackTrace();
+        }
+
+        @Override
+        public void onNext(WeatherData weatherData) {
+
+            TextView lblLabel = (TextView)findViewById(R.id.lblLabel);
+
+            lblLabel.setText(weatherData.getWeather()
+                    .get(0)
+                    .getDescription());
+
+            Log.v(MainActivity.class.getCanonicalName(), weatherData.getWeather()
+                    .get(0)
+                    .getDescription());
+
+        }
+    }
+
+
+    private void fetchData() {
+
+        HttpLoggingInterceptor interceptorLogging = new HttpLoggingInterceptor();
+        interceptorLogging.setLevel(HttpLoggingInterceptor.Level.BODY);
+
+
+        OkHttpClient okHttpClient = new OkHttpClient.Builder()
+                .addInterceptor(interceptorLogging)
+                .connectTimeout(60, TimeUnit.SECONDS)
+                .readTimeout(60, TimeUnit.SECONDS)
+                .writeTimeout(60, TimeUnit.SECONDS)
+                .build();
+
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+
+        RxJavaCallAdapterFactory rxAdapter = RxJavaCallAdapterFactory.createWithScheduler(Schedulers.io());
+
+        Retrofit retrofit = new Retrofit.Builder()
+                .addConverterFactory(JacksonConverterFactory.create(mapper))
+                .addCallAdapterFactory(rxAdapter)
+                .baseUrl("http://api.openweathermap.org/data/2.5/")
+                .client(okHttpClient)
+                .build();
+
+
+        WeatherService weatherService = retrofit.create(WeatherService.class);
+        Observable<WeatherData> observable = weatherService.query("Islamabad");
+
+
+        compositeSubs.add(
+                observable.subscribeOn(Schedulers.newThread())
+                        .observeOn(AndroidSchedulers.mainThread())
+                        .subscribe(new WeatherDataSubscriber())
+        );
     }
 
 }

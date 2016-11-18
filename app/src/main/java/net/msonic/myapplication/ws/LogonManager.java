@@ -1,7 +1,6 @@
 package net.msonic.myapplication.ws;
 
-import com.squareup.otto.Bus;
-import com.squareup.otto.Subscribe;
+
 
 import net.msonic.myapplication.LogonReponse;
 import net.msonic.myapplication.LogonRequest;
@@ -19,7 +18,6 @@ import retrofit2.Retrofit;
 public class LogonManager {
 
     private Retrofit retrofit;
-    private Bus bus;
 
 
     public void logon(String userName,String password){
@@ -41,7 +39,6 @@ public class LogonManager {
         }
 
 
-    @Subscribe
     public void onLoadAuthenticateEvent(LogonRequest logonRequest) {
 
         String userName = logonRequest.getUserName();
@@ -49,19 +46,16 @@ public class LogonManager {
 
         OAuth oAuth = retrofit.create(OAuth.class);
 
-
-
-
         Callback<LogonReponse> callback = new Callback<LogonReponse>() {
 
             @Override
             public void onResponse(Call<LogonReponse> call, Response<LogonReponse> response) {
-                bus.post(response);
+                //bus.post(response);
             }
 
             @Override
             public void onFailure(Call<LogonReponse> call, Throwable t) {
-                bus.post(null);
+                //bus.post(null);
             }
         };
 
@@ -78,11 +72,5 @@ public class LogonManager {
         this.retrofit = retrofit;
     }
 
-    public Bus getBus() {
-        return bus;
-    }
 
-    public void setBus(Bus bus) {
-        this.bus = bus;
-    }
 }
